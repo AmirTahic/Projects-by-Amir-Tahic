@@ -4,6 +4,9 @@ import com.example.ProjektKinoTahic.dtos.movieDTOs.RequestMovieDTO;
 import com.example.ProjektKinoTahic.dtos.movieDTOs.ResponseMovieDTO;
 import com.example.ProjektKinoTahic.entities.Hall;
 import com.example.ProjektKinoTahic.entities.Movie;
+import com.example.ProjektKinoTahic.exceptions.HallNotFoundException;
+import com.example.ProjektKinoTahic.exceptions.InvalidMovieFormatException;
+import com.example.ProjektKinoTahic.exceptions.MovieNotFoundException;
 import com.example.ProjektKinoTahic.repositories.HallRepository;
 import com.example.ProjektKinoTahic.repositories.MovieRepository;
 import lombok.RequiredArgsConstructor;
@@ -30,9 +33,9 @@ public class MovieService {
                 movieRepository.save(movie);
                 return new ResponseEntity<>(convertMovieToDTO(movie), HttpStatus.OK);
             }
-            return new ResponseEntity<>("Der Saal unterstützt die Filmversion nicht!" ,HttpStatus.FORBIDDEN);
+            throw new InvalidMovieFormatException();
         }
-        return new ResponseEntity<>("Der Saal existiert nicht!" ,HttpStatus.NOT_FOUND);
+        throw new HallNotFoundException();
     }
 
     public ResponseEntity<?> editMovie(int movieId, RequestMovieDTO requestMovieDTO){
@@ -52,16 +55,16 @@ public class MovieService {
                     movieRepository.save(movie);
                     return new ResponseEntity<>(convertMovieToDTO(movie), HttpStatus.OK);
                 }
-                return new ResponseEntity<>("Der Saal unterstützt die Filmversion nicht!" ,HttpStatus.FORBIDDEN);
+                throw new InvalidMovieFormatException();
             }
-            return new ResponseEntity<>("Der Film den Sie ändern möchten existiert nicht!", HttpStatus.NOT_FOUND);
+            throw new MovieNotFoundException();
         }
-        return new ResponseEntity<>("Sorry ich fand den Statuscode lustig! Hier kommt Halle existiert nicht", HttpStatus.I_AM_A_TEAPOT);
+        throw new HallNotFoundException();
     }
 
 
     private Movie createMovie(RequestMovieDTO requestMovieDTO, Hall hall){
-        return new Movie().builder()
+        return Movie.builder()
                 .title(requestMovieDTO.getTitle())
                 .mainCharacter(requestMovieDTO.getMainCharacter())
                 .description(requestMovieDTO.getDescription())
@@ -72,11 +75,12 @@ public class MovieService {
     }
 
     private ResponseMovieDTO convertMovieToDTO(Movie movie){
-        return new ResponseMovieDTO().builder()
+        return ResponseMovieDTO.builder()
                 .movieId(movie.getMovieId())
                 .title(movie.getTitle())
                 .mainCharacter(movie.getMainCharacter())
                 .description(movie.getDescription())
+                .premieredAt(movie.getPremieredAt())
                 .movieVersion(movie.getMovieVersion())
                 .hallId(movie.getHall().getHallId())
                 .build();

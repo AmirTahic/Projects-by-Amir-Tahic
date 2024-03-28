@@ -1,16 +1,13 @@
 package com.example.ProjektKinoTahic.dtos.cinemaDTOs;
 
-import com.example.ProjektKinoTahic.entities.Hall;
 import lombok.*;
-
-import java.util.List;
-
 @Builder
 @Getter
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-public class RequestCinemaDTO {
+public class ResponseCinemaWithOutHallsDTO {
+    private int cinemaId;
 
     private String name;
 

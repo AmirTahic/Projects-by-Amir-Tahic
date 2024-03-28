@@ -2,17 +2,19 @@ package com.example.ProjektKinoTahic.services;
 
 import com.example.ProjektKinoTahic.dtos.cinemaDTOs.RequestCinemaDTO;
 import com.example.ProjektKinoTahic.dtos.cinemaDTOs.ResponseCinemaDTO;
+import com.example.ProjektKinoTahic.dtos.cinemaDTOs.ResponseCinemaWithOutHallsDTO;
 import com.example.ProjektKinoTahic.dtos.hallDTOs.ResponseHallDTO;
 import com.example.ProjektKinoTahic.entities.Cinema;
 import com.example.ProjektKinoTahic.entities.Hall;
+import com.example.ProjektKinoTahic.exceptions.CinemaDeletedException;
+import com.example.ProjektKinoTahic.exceptions.CinemaNotDeletableException;
+import com.example.ProjektKinoTahic.exceptions.CinemaNotFoundException;
 import com.example.ProjektKinoTahic.repositories.CinemaRepository;
 import com.example.ProjektKinoTahic.repositories.HallRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -34,9 +36,9 @@ public class CinemaService {
             cinemaRepository.save(cinema);
             //Returns the DTO to Frontend
             return new ResponseEntity<>(convertCinemaToDTO(cinema), HttpStatus.OK);
-        }catch (DataIntegrityViolationException e){
+        } catch (DataIntegrityViolationException e) {
             //Only when something in RequestBody is missing
-            return new ResponseEntity<>("Bitte fülle alle Felder aus",HttpStatus.BAD_REQUEST);
+            return new ResponseEntity<>("Bitte fülle alle Felder aus", HttpStatus.BAD_REQUEST);
         }
     }
 
@@ -44,16 +46,16 @@ public class CinemaService {
     public ResponseEntity<?> getCinemaById(int cinemaId) {
 
         //Gets Cinema by ID from Repository
-        Cinema cinema = cinemaRepository.findCinemaByCinemaId(cinemaId);
+        Optional<Cinema> optionalCinema = cinemaRepository.findById(cinemaId);
 
-        //Checks if cinema is null
-        if (cinema == null) {
-            //Returns not found
-            return new ResponseEntity<>("Das Kino existiert nicht!",HttpStatus.NOT_FOUND);
+        //Checks if cinema exists
+        if (optionalCinema.isPresent()) {
+            Cinema cinema = optionalCinema.get();
+            //Returns Cinema as DTO
+            return new ResponseEntity<>(convertCinemaWithHallsToDTO(cinema), HttpStatus.OK);
         }
-        //Returns Cinema as DTO
-        return new ResponseEntity<>(convertCinemaWithHallsToDTO(cinema), HttpStatus.OK);
-
+        //Returns not found
+        throw new CinemaNotFoundException();
     }
 
     //Gets all Cinemas from Repository and saves in a cinemaDTO List and returns the DTO List
@@ -71,34 +73,31 @@ public class CinemaService {
     }
 
     //Searches the cinema by ID and deletes it
-    public ResponseEntity<String> deleteCinemaById(int cinemaId) {
-        Cinema cinema = cinemaRepository.findCinemaByCinemaId(cinemaId);
+    public ResponseEntity<?> deleteCinemaById(int cinemaId) {
+        Optional<Cinema> optionalCinema = cinemaRepository.findById(cinemaId);
 
-        try{
-        //Checks if cinema exists by ID
-        if (cinemaRepository.existsById(cinemaId)) {
-            //Deletes all Halls in the Cinema first
+        if (optionalCinema.isPresent()) {
+            Cinema cinema = optionalCinema.get();
+            //Checks if there is a movie in a hall
             for (Hall hall : cinema.getHallList()) {
-                //Deletes the Halls only when there is no Movie in the Hall
-                if (hall.getMovieList().isEmpty())
-                    hallRepository.deleteById(hall.getHallId());
+                if (!hall.getMovieList().isEmpty()) {
+                    throw new CinemaNotDeletableException();
+                }
             }
-            //Deletes existing cinema
+            //If there is no movie in a hall it deletes all halls first
+            for (Hall hall : cinema.getHallList()) {
+                hallRepository.deleteById(hall.getHallId());
+            }
+            //Then deletes the cinema
             cinemaRepository.deleteById(cinemaId);
-
-            return new ResponseEntity<>("Kino gelöscht!", HttpStatus.OK);
+            throw new CinemaDeletedException();
         }
-        }catch(DataIntegrityViolationException e) {
-            //When cinema not existing returns not found
-            return new ResponseEntity<>("Kino kann nicht gelöscht werden da ein Film in einem Saal läuft!", HttpStatus.BAD_REQUEST);
-        }
-
-        return new ResponseEntity<>("Das Kino wurde nicht gefunden!", HttpStatus.NOT_FOUND);
+        throw new CinemaNotFoundException();
     }
 
     private Cinema createCinema(RequestCinemaDTO requestCinemaDTO) {
         //returns the created cinema. Cinema got created from request body
-        return new Cinema().builder()
+        return Cinema.builder()
                 .name(requestCinemaDTO.getName())
                 .address(requestCinemaDTO.getAddress())
                 .manager(requestCinemaDTO.getManager())
@@ -107,9 +106,9 @@ public class CinemaService {
                 .build();
     }
 
-    private ResponseCinemaDTO convertCinemaToDTO(Cinema cinema) {
+    private ResponseCinemaWithOutHallsDTO convertCinemaToDTO(Cinema cinema) {
         //Returns the cinema as DTO
-        return new ResponseCinemaDTO().builder()
+        return ResponseCinemaWithOutHallsDTO.builder()
                 .cinemaId(cinema.getCinemaId())
                 .name(cinema.getName())
                 .address(cinema.getAddress())
@@ -120,7 +119,7 @@ public class CinemaService {
 
     private ResponseCinemaDTO convertCinemaWithHallsToDTO(Cinema cinema) {
         //Converts the created cinema to DTO with Halls
-        return new ResponseCinemaDTO().builder()
+        return ResponseCinemaDTO.builder()
                 .cinemaId(cinema.getCinemaId())
                 .name(cinema.getName())
                 .address(cinema.getAddress())
@@ -136,12 +135,11 @@ public class CinemaService {
 
         //For every Hall in the cinema hall get converted into a DTO
         for (Hall hall : cinema.getHallList()) {
-            ResponseHallDTO responseHallDTO = new ResponseHallDTO().builder()
+            ResponseHallDTO responseHallDTO = ResponseHallDTO.builder()
                     .hallId(hall.getHallId())
                     .capacity(hall.getCapacity())
                     .occupiedSeats(hall.getOccupiedSeats())
                     .supportedMovieVersion(hall.getSupportedMovieVersion())
-                    .cinemaId(cinema.getCinemaId())
                     .build();
 
             //Saves the hallDTO in the created list above

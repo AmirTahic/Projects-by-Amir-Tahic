@@ -1,6 +1,5 @@
 package com.example.ProjektKinoTahic.dtos.hallDTOs;
 
-import com.example.ProjektKinoTahic.entities.Cinema;
 import com.example.ProjektKinoTahic.enums.MovieVersion;
 import lombok.*;
 
@@ -9,7 +8,8 @@ import lombok.*;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-public class RequestHallDTO {
+public class ResponseHallWithCinemaIdDTO {
+    private int hallId;
 
     private int capacity;
 

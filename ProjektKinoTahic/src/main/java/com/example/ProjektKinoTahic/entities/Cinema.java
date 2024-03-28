@@ -12,7 +12,6 @@ import java.util.List;
 @NoArgsConstructor
 
 @Entity
-@Table(name = "Kino")
 public class Cinema {
 
     @Id

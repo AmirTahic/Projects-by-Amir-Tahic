@@ -11,7 +11,6 @@ import lombok.*;
 @NoArgsConstructor
 
 @Entity
-@Table(name = "Film")
 public class Movie {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

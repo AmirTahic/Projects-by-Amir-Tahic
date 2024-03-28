@@ -1,17 +1,20 @@
 package com.example.ProjektKinoTahic.services;
 
 import com.example.ProjektKinoTahic.dtos.hallDTOs.RequestHallDTO;
-import com.example.ProjektKinoTahic.dtos.hallDTOs.ResponseHallDTO;
+import com.example.ProjektKinoTahic.dtos.hallDTOs.ResponseHallWithCinemaIdDTO;
 import com.example.ProjektKinoTahic.entities.Cinema;
 import com.example.ProjektKinoTahic.entities.Hall;
 import com.example.ProjektKinoTahic.enums.MovieVersion;
+import com.example.ProjektKinoTahic.exceptions.HallNotChangeableException;
+import com.example.ProjektKinoTahic.exceptions.HallNotFoundException;
+import com.example.ProjektKinoTahic.exceptions.CinemaNotFoundException;
+import com.example.ProjektKinoTahic.exceptions.MaxHallsReachedException;
 import com.example.ProjektKinoTahic.repositories.CinemaRepository;
 import com.example.ProjektKinoTahic.repositories.HallRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-import org.springframework.web.bind.annotation.RequestBody;
 
 import java.util.Optional;
 
@@ -36,10 +39,10 @@ public class HallService {
 
                 return new ResponseEntity<>(convertHallToDTO(hall), HttpStatus.OK);
             } else {
-                return new ResponseEntity<>("Die maximale Anzahl an Sääle wurde erreicht", HttpStatus.FORBIDDEN);
+                throw new MaxHallsReachedException();
             }
         }
-        return new ResponseEntity<>("Das gewünschte Kino existiert nicht", HttpStatus.NOT_FOUND);
+       throw new CinemaNotFoundException();
 
     }
 
@@ -48,12 +51,13 @@ public class HallService {
         Optional<Hall> optionalHall = hallRepository.findById(hallId);
         if (optionalHall.isPresent()) {
             Hall hall = optionalHall.get();
-            editHallAndSave(hall, requestHallDTO);
+
+            hallRepository.save(editHall(hall,requestHallDTO));
 
             return new ResponseEntity<>(convertHallToDTO(hall), HttpStatus.OK);
         }
 
-        return new ResponseEntity<>("Gewünschte Halle existiert nicht!", HttpStatus.NOT_FOUND);
+        throw new HallNotFoundException();
     }
 
     public ResponseEntity<?> showHall(int hallId) {
@@ -62,11 +66,11 @@ public class HallService {
             Hall hall = optionalHall.get();
             return new ResponseEntity<>(convertHallToDTO(hall), HttpStatus.OK);
         }
-        return new ResponseEntity<>("Gewünschte Halle existiert nicht!", HttpStatus.NOT_FOUND);
+        throw new HallNotFoundException();
     }
 
-    private ResponseHallDTO convertHallToDTO(Hall hall) {
-        return new ResponseHallDTO().builder()
+    private ResponseHallWithCinemaIdDTO convertHallToDTO(Hall hall) {
+        return ResponseHallWithCinemaIdDTO.builder()
                 .hallId(hall.getHallId())
                 .capacity(hall.getCapacity())
                 .occupiedSeats(hall.getOccupiedSeats())
@@ -77,7 +81,7 @@ public class HallService {
 
     private Hall createHall(RequestHallDTO requestHallDTO, Cinema cinema) {
 
-        return new Hall().builder()
+        return Hall.builder()
                 .capacity(requestHallDTO.getCapacity())
                 .occupiedSeats(requestHallDTO.getOccupiedSeats())
                 .supportedMovieVersion(requestHallDTO.getSupportedMovieVersion())
@@ -85,14 +89,16 @@ public class HallService {
                 .build();
     }
 
-    private void editHallAndSave(Hall hall, RequestHallDTO requestHallDTO) {
+    private Hall editHall(Hall getHall, RequestHallDTO requestHallDTO) {
+        Hall hall = getHall;
         if (hall.getMovieList().isEmpty()) {
             hall.setCapacity(requestHallDTO.getCapacity());
             hall.setOccupiedSeats(requestHallDTO.getOccupiedSeats());
             if (MovieVersion.DBOX == hall.getSupportedMovieVersion() && requestHallDTO.getSupportedMovieVersion() == MovieVersion.R3D) {
                 hall.setSupportedMovieVersion(requestHallDTO.getSupportedMovieVersion());
             }
-            hallRepository.save(hall);
+            return hall;
         }
+        throw new HallNotChangeableException();
     }
 }

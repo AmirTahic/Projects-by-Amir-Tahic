@@ -36,8 +36,7 @@ public class CinemaController {
 
     @DeleteMapping("/{cinemaId}")
     public ResponseEntity<?> deleteCinemaById(@PathVariable int cinemaId){
-
-        return new ResponseEntity<>(cinemaService.deleteCinemaById(cinemaId), cinemaService.deleteCinemaById(cinemaId).getStatusCode());
+        return cinemaService.deleteCinemaById(cinemaId);
     }
 
 }
